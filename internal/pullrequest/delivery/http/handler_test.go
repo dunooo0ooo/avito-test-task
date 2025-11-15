@@ -59,7 +59,7 @@ func TestPullRequestHandler_Create_Success(t *testing.T) {
 	assert.Equal(t, pr.PullRequestID, resp.PullRequestDTO.PullRequestID)
 	assert.Equal(t, pr.PullRequestName, resp.PullRequestDTO.PullRequestName)
 	assert.Equal(t, pr.AuthorID, resp.PullRequestDTO.AuthorID)
-	assert.Equal(t, pr.Status, resp.PullRequestDTO.Status)
+	assert.Equal(t, string(pr.Status), string(resp.PullRequestDTO.Status))
 	assert.Equal(t, pr.AssignedReviewers, resp.PullRequestDTO.AssignedReviewers)
 }
 
@@ -176,7 +176,7 @@ func TestPullRequestHandler_Merge_Success(t *testing.T) {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
 
 	assert.Equal(t, pr.PullRequestID, resp.MergedPullRequestDTO.PullRequestID)
-	assert.Equal(t, pr.Status, resp.MergedPullRequestDTO.Status)
+	assert.Equal(t, string(pr.Status), string(resp.MergedPullRequestDTO.Status))
 	assert.Equal(t, pr.AssignedReviewers, resp.MergedPullRequestDTO.AssignedReviewers)
 }
 

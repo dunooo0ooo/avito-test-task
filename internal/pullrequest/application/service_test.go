@@ -156,10 +156,8 @@ func TestMergePullRequest_AlreadyMerged(t *testing.T) {
 		Return(existing, nil)
 
 	pr, err := svc.MergePullRequest(ctx, "pr-1")
-	require.NoError(t, err)
-	require.NotNil(t, pr)
-
-	assert.Equal(t, prdomain.PRStatusMerged, pr.Status)
+	require.Error(t, err)
+	require.Nil(t, pr)
 }
 
 func TestMergePullRequest_FromOpenToMerged(t *testing.T) {
@@ -401,4 +399,320 @@ func TestReassignReviewer_NoCandidate(t *testing.T) {
 	assert.True(t, errors.Is(err, prdomain.ErrNoCandidate))
 	assert.Nil(t, resPR)
 	assert.Equal(t, "", newReviewer)
+}
+
+func TestCreatePullRequest_CreateError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	logger := zap.NewNop()
+	svc := NewPullRequestService(prRepo, userRepo, logger)
+	ctx := context.Background()
+
+	author := &userdomain.User{
+		UserID:   "u1",
+		Username: "Alice",
+		TeamName: "backend",
+		IsActive: true,
+	}
+
+	userRepo.EXPECT().
+		GetByID(gomock.Any(), "u1").
+		Return(author, nil)
+
+	userRepo.EXPECT().
+		ListByTeam(gomock.Any(), "backend").
+		Return([]*userdomain.User{
+			author,
+			{UserID: "u2", Username: "Bob", TeamName: "backend", IsActive: true},
+		}, nil)
+
+	expectedErr := errors.New("create error")
+
+	prRepo.EXPECT().
+		Create(gomock.Any(), gomock.Any()).
+		Return(expectedErr)
+
+	pr, err := svc.CreatePullRequest(ctx, "pr-1", "Add search", "u1")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+	assert.Nil(t, pr)
+}
+
+func TestCreatePullRequest_SetReviewersError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	logger := zap.NewNop()
+	svc := NewPullRequestService(prRepo, userRepo, logger)
+	ctx := context.Background()
+
+	author := &userdomain.User{
+		UserID:   "u1",
+		Username: "Alice",
+		TeamName: "backend",
+		IsActive: true,
+	}
+
+	userRepo.EXPECT().
+		GetByID(gomock.Any(), "u1").
+		Return(author, nil)
+
+	userRepo.EXPECT().
+		ListByTeam(gomock.Any(), "backend").
+		Return([]*userdomain.User{
+			author,
+			{UserID: "u2", Username: "Bob", TeamName: "backend", IsActive: true},
+		}, nil)
+
+	prRepo.EXPECT().
+		Create(gomock.Any(), gomock.Any()).
+		Return(nil)
+
+	expectedErr := errors.New("set reviewers error")
+
+	prRepo.EXPECT().
+		SetReviewers(gomock.Any(), "pr-1", gomock.Any()).
+		Return(expectedErr)
+
+	pr, err := svc.CreatePullRequest(ctx, "pr-1", "Add search", "u1")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+	assert.Nil(t, pr)
+}
+
+func TestCreatePullRequest_GetByIDAfterCreateError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	logger := zap.NewNop()
+	svc := NewPullRequestService(prRepo, userRepo, logger)
+	ctx := context.Background()
+
+	author := &userdomain.User{
+		UserID:   "u1",
+		Username: "Alice",
+		TeamName: "backend",
+		IsActive: true,
+	}
+
+	userRepo.EXPECT().
+		GetByID(gomock.Any(), "u1").
+		Return(author, nil)
+
+	userRepo.EXPECT().
+		ListByTeam(gomock.Any(), "backend").
+		Return([]*userdomain.User{
+			author,
+			{UserID: "u2", Username: "Bob", TeamName: "backend", IsActive: true},
+		}, nil)
+
+	gomock.InOrder(
+		prRepo.EXPECT().
+			Create(gomock.Any(), gomock.Any()).
+			Return(nil),
+		prRepo.EXPECT().
+			SetReviewers(gomock.Any(), "pr-1", gomock.Any()).
+			Return(nil),
+	)
+
+	expectedErr := errors.New("get after create error")
+
+	prRepo.EXPECT().
+		GetByID(gomock.Any(), "pr-1").
+		Return(nil, expectedErr)
+
+	pr, err := svc.CreatePullRequest(ctx, "pr-1", "Add search", "u1")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+	assert.Nil(t, pr)
+}
+
+func TestMergePullRequest_UpdateStatusError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	logger := zap.NewNop()
+	svc := NewPullRequestService(prRepo, userRepo, logger)
+	ctx := context.Background()
+
+	openPR := &prdomain.PullRequest{
+		PullRequestID:   "pr-1",
+		PullRequestName: "Add search",
+		AuthorID:        "u1",
+		Status:          prdomain.PRStatusOpen,
+	}
+
+	expectedErr := errors.New("update error")
+
+	gomock.InOrder(
+		prRepo.EXPECT().
+			GetByID(gomock.Any(), "pr-1").
+			Return(openPR, nil),
+		prRepo.EXPECT().
+			UpdateStatus(gomock.Any(), "pr-1", prdomain.PRStatusMerged, gomock.Any()).
+			Return(expectedErr),
+	)
+
+	pr, err := svc.MergePullRequest(ctx, "pr-1")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+	assert.Nil(t, pr)
+}
+
+func TestMergePullRequest_GetAfterUpdateError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	logger := zap.NewNop()
+	svc := NewPullRequestService(prRepo, userRepo, logger)
+	ctx := context.Background()
+
+	openPR := &prdomain.PullRequest{
+		PullRequestID:   "pr-1",
+		PullRequestName: "Add search",
+		AuthorID:        "u1",
+		Status:          prdomain.PRStatusOpen,
+	}
+
+	expectedErr := errors.New("get after update error")
+
+	gomock.InOrder(
+		prRepo.EXPECT().
+			GetByID(gomock.Any(), "pr-1").
+			Return(openPR, nil),
+		prRepo.EXPECT().
+			UpdateStatus(gomock.Any(), "pr-1", prdomain.PRStatusMerged, gomock.Any()).
+			Return(nil),
+		prRepo.EXPECT().
+			GetByID(gomock.Any(), "pr-1").
+			Return(nil, expectedErr),
+	)
+
+	pr, err := svc.MergePullRequest(ctx, "pr-1")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+	assert.Nil(t, pr)
+}
+
+func TestReassignReviewer_GetPRByIDError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	logger := zap.NewNop()
+	svc := NewPullRequestService(prRepo, userRepo, logger)
+	ctx := context.Background()
+
+	expectedErr := errors.New("get pr error")
+
+	prRepo.EXPECT().
+		GetByID(gomock.Any(), "pr-1").
+		Return(nil, expectedErr)
+
+	resPR, newRev, err := svc.ReassignReviewer(ctx, "pr-1", "u2")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+	assert.Nil(t, resPR)
+	assert.Equal(t, "", newRev)
+}
+
+func TestReassignReviewer_GetOldReviewerError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	logger := zap.NewNop()
+	svc := NewPullRequestService(prRepo, userRepo, logger)
+	ctx := context.Background()
+
+	pr := &prdomain.PullRequest{
+		PullRequestID:     "pr-1",
+		PullRequestName:   "Add search",
+		AuthorID:          "u1",
+		Status:            prdomain.PRStatusOpen,
+		AssignedReviewers: []string{"u2"},
+	}
+
+	expectedErr := errors.New("get user error")
+
+	prRepo.EXPECT().
+		GetByID(gomock.Any(), "pr-1").
+		Return(pr, nil)
+
+	userRepo.EXPECT().
+		GetByID(gomock.Any(), "u2").
+		Return(nil, expectedErr)
+
+	resPR, newRev, err := svc.ReassignReviewer(ctx, "pr-1", "u2")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+	assert.Nil(t, resPR)
+	assert.Equal(t, "", newRev)
+}
+
+func TestReassignReviewer_SetReviewersError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	logger := zap.NewNop()
+	svc := NewPullRequestService(prRepo, userRepo, logger)
+	ctx := context.Background()
+
+	pr := &prdomain.PullRequest{
+		PullRequestID:     "pr-1",
+		PullRequestName:   "Add search",
+		AuthorID:          "u1",
+		Status:            prdomain.PRStatusOpen,
+		AssignedReviewers: []string{"u2"},
+	}
+
+	old := &userdomain.User{
+		UserID:   "u2",
+		Username: "Bob",
+		TeamName: "backend",
+		IsActive: true,
+	}
+
+	teamMembers := []*userdomain.User{
+		old,
+		{UserID: "u3", Username: "Carol", TeamName: "backend", IsActive: true},
+	}
+
+	expectedErr := errors.New("set reviewers error")
+
+	gomock.InOrder(
+		prRepo.EXPECT().
+			GetByID(gomock.Any(), "pr-1").
+			Return(pr, nil),
+		userRepo.EXPECT().
+			GetByID(gomock.Any(), "u2").
+			Return(old, nil),
+		userRepo.EXPECT().
+			ListByTeam(gomock.Any(), "backend").
+			Return(teamMembers, nil),
+		prRepo.EXPECT().
+			SetReviewers(gomock.Any(), "pr-1", gomock.Any()).
+			Return(expectedErr),
+	)
+
+	resPR, newRev, err := svc.ReassignReviewer(ctx, "pr-1", "u2")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+	assert.Nil(t, resPR)
+	assert.Equal(t, "", newRev)
 }

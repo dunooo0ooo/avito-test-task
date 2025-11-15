@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	prdomain "github.com/dunooo0ooo/avito-test-task/internal/pullrequest/domain"
 	userdomain "github.com/dunooo0ooo/avito-test-task/internal/user/domain"
 	"github.com/dunooo0ooo/avito-test-task/internal/user/mocks"
@@ -110,6 +111,63 @@ func TestUserHandler_SetIsActive_UserNotFound(t *testing.T) {
 	assert.Equal(t, "NOT_FOUND", errResp.Error.Code)
 }
 
+func TestUserHandler_SetIsActive_InternalError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	svc := mocks.NewMockUserService(ctrl)
+	h := NewUserHandler(svc)
+
+	svc.EXPECT().
+		SetIsActive(gomock.Any(), "u1", true).
+		Return(nil, userdomain.ErrInternalDatabase)
+
+	body := `{"user_id":"u1","is_active":true}`
+	req := httptest.NewRequest(http.MethodPost, "/users/setIsActive", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	h.SetIsActive(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+
+	var errResp errorResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&errResp))
+
+	assert.Equal(t, "INTERNAL_ERROR", errResp.Error.Code)
+}
+
+func TestUserHandler_SetIsActive_UnexpectedError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	svc := mocks.NewMockUserService(ctrl)
+	h := NewUserHandler(svc)
+
+	svc.EXPECT().
+		SetIsActive(gomock.Any(), "u1", true).
+		Return(nil, errors.New("some error"))
+
+	body := `{"user_id":"u1","is_active":true}`
+	req := httptest.NewRequest(http.MethodPost, "/users/setIsActive", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	h.SetIsActive(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+	var errResp errorResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&errResp))
+
+	assert.Equal(t, "BAD_REQUEST", errResp.Error.Code)
+	assert.Equal(t, "some error", errResp.Error.Message)
+}
+
 func TestUserHandler_GetUserReviews_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -171,4 +229,86 @@ func TestUserHandler_GetUserReviews_MissingUserID(t *testing.T) {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&errResp))
 
 	assert.Equal(t, "BAD_REQUEST", errResp.Error.Code)
+}
+
+func TestUserHandler_GetUserReviews_UserNotFound(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	svc := mocks.NewMockUserService(ctrl)
+	h := NewUserHandler(svc)
+
+	svc.EXPECT().
+		GetUserReviews(gomock.Any(), "u2").
+		Return(nil, userdomain.ErrUserNotFound)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=u2", nil)
+	w := httptest.NewRecorder()
+
+	h.GetUserReviews(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	require.Equal(t, http.StatusNotFound, res.StatusCode)
+
+	var errResp errorResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&errResp))
+
+	assert.Equal(t, "NOT_FOUND", errResp.Error.Code)
+}
+
+func TestUserHandler_GetUserReviews_InternalError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	svc := mocks.NewMockUserService(ctrl)
+	h := NewUserHandler(svc)
+
+	svc.EXPECT().
+		GetUserReviews(gomock.Any(), "u2").
+		Return(nil, userdomain.ErrInternalDatabase)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=u2", nil)
+	w := httptest.NewRecorder()
+
+	h.GetUserReviews(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+
+	var errResp errorResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&errResp))
+
+	assert.Equal(t, "INTERNAL_ERROR", errResp.Error.Code)
+}
+
+func TestUserHandler_GetUserReviews_UnexpectedError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	svc := mocks.NewMockUserService(ctrl)
+	h := NewUserHandler(svc)
+
+	svc.EXPECT().
+		GetUserReviews(gomock.Any(), "u2").
+		Return(nil, errors.New("boom"))
+
+	req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=u2", nil)
+	w := httptest.NewRecorder()
+
+	h.GetUserReviews(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+	var errResp errorResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&errResp))
+
+	assert.Equal(t, "BAD_REQUEST", errResp.Error.Code)
+	assert.Equal(t, "boom", errResp.Error.Message)
 }
