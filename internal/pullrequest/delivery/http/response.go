@@ -1,16 +1,22 @@
 package http
 
 import (
-	"github.com/dunooo0ooo/avito-test-task/internal/pullrequest/domain"
 	"time"
 )
 
+type PRStatus string
+
+const (
+	PRStatusOpen   PRStatus = "OPEN"
+	PRStatusMerged PRStatus = "MERGED"
+)
+
 type PullRequestDTO struct {
-	PullRequestID     string          `json:"pull_request_id"`
-	PullRequestName   string          `json:"pull_request_name"`
-	AuthorID          string          `json:"author_id"`
-	Status            domain.PRStatus `json:"status"`
-	AssignedReviewers []string        `json:"assigned_reviewers"`
+	PullRequestID     string   `json:"pull_request_id"`
+	PullRequestName   string   `json:"pull_request_name"`
+	AuthorID          string   `json:"author_id"`
+	Status            PRStatus `json:"status"`
+	AssignedReviewers []string `json:"assigned_reviewers"`
 }
 
 type CreateResponse struct {
@@ -18,12 +24,12 @@ type CreateResponse struct {
 }
 
 type MergedPullRequestDTO struct {
-	PullRequestID     string          `json:"pull_request_id"`
-	PullRequestName   string          `json:"pull_request_name"`
-	AuthorID          string          `json:"author_id"`
-	Status            domain.PRStatus `json:"status"`
-	AssignedReviewers []string        `json:"assigned_reviewers"`
-	MergedAt          *time.Time      `json:"mergedAt"`
+	PullRequestID     string     `json:"pull_request_id"`
+	PullRequestName   string     `json:"pull_request_name"`
+	AuthorID          string     `json:"author_id"`
+	Status            PRStatus   `json:"status"`
+	AssignedReviewers []string   `json:"assigned_reviewers"`
+	MergedAt          *time.Time `json:"mergedAt"`
 }
 
 type MergeResponse struct {

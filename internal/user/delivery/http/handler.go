@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	pr_http "github.com/dunooo0ooo/avito-test-task/internal/pullrequest/delivery/http"
 	pr "github.com/dunooo0ooo/avito-test-task/internal/pullrequest/domain"
 	"github.com/dunooo0ooo/avito-test-task/internal/user/domain"
 	"github.com/dunooo0ooo/avito-test-task/pkg/httpcommon"
@@ -84,9 +85,19 @@ func (h *UserHandler) GetUserReviews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	prResp := make([]PullRequestShortDTO, 0, len(reviews.PullRequests))
+	for _, pr := range reviews.PullRequests {
+		prResp = append(prResp, PullRequestShortDTO{
+			PullRequestID:   pr.PullRequestID,
+			PullRequestName: pr.PullRequestName,
+			AuthorID:        pr.AuthorID,
+			Status:          pr_http.PRStatus(pr.Status),
+		})
+	}
+
 	resp := GetReviewsResponse{
 		UserID:       reviews.UserID,
-		PullRequests: reviews.PullRequests,
+		PullRequests: prResp,
 	}
 
 	httpcommon.JSONResponse(w, http.StatusOK, resp)
