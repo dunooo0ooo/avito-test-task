@@ -140,7 +140,7 @@ func (s *PullRequestService) MergePullRequest(ctx context.Context, id string) (*
 				zap.String("pr_id", id),
 			)
 		}
-		return pr, nil
+		return nil, prdomain.ErrPullRequestMerged
 	}
 
 	now := time.Now().UTC()

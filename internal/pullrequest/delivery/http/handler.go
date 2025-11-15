@@ -79,6 +79,8 @@ func (h *PullRequestHandler) Merge(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, userdomain.ErrUserNotFound):
 			httpcommon.JSONError(w, http.StatusNotFound, "NOT_FOUND", "resource not found")
+		case errors.Is(err, domain.ErrPullRequestMerged):
+			httpcommon.JSONError(w, http.StatusNotFound, "PR_MERGED", "pull request already merged")
 		default:
 			httpcommon.JSONError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		}
