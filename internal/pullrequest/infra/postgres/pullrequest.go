@@ -24,7 +24,9 @@ func (r *Repository) Create(ctx context.Context, pr *domain.PullRequest) error {
 	if err != nil {
 		return fmt.Errorf("%w: %w", domain.ErrInternalDatabase, err)
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 
 	const query = `
 		INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status)
@@ -125,7 +127,9 @@ func (r *Repository) UpdateStatus(ctx context.Context, id string, status domain.
 	if err != nil {
 		return fmt.Errorf("%w: %w", domain.ErrInternalDatabase, err)
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 
 	const query = `
 		UPDATE pull_requests
@@ -161,7 +165,9 @@ func (r *Repository) SetReviewers(ctx context.Context, id string, reviewerIDs []
 	if err != nil {
 		return fmt.Errorf("%w: %w", domain.ErrInternalDatabase, err)
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 
 	const deleteQuery = `
 		DELETE FROM pr_reviewers
@@ -202,27 +208,11 @@ func (r *Repository) ListByReviewer(ctx context.Context, reviewerID string) ([]d
 			p.pull_request_id,
 			p.pull_request_name,
 			p.author_id,
-			p.status,
-			p.created_at,
-			p.merged_at,
-			COALESCE(
-				array_agg(rw.reviewer_id ORDER BY rw.reviewer_id)
-					FILTER (WHERE rw.reviewer_id IS NOT NULL),
-				'{}'::text[]
-			) AS reviewers
+			p.status
 		FROM pr_reviewers rw
 		JOIN pull_requests p
 			ON p.pull_request_id = rw.pull_request_id
-		LEFT JOIN pr_reviewers allrw
-			ON allrw.pull_request_id = p.pull_request_id
 		WHERE rw.reviewer_id = @rid
-		GROUP BY
-			p.pull_request_id,
-			p.pull_request_name,
-			p.author_id,
-			p.status,
-			p.created_at,
-			p.merged_at
 		ORDER BY p.created_at DESC
 	`
 
@@ -252,7 +242,6 @@ func (r *Repository) ListByReviewer(ctx context.Context, reviewerID string) ([]d
 		}
 
 		pr.Status = domain.PRStatus(status)
-
 		res = append(res, pr)
 	}
 
@@ -269,32 +258,16 @@ func (r *Repository) ListOpenByReviewers(ctx context.Context, reviewerIDs []stri
 	}
 
 	const query = `
-		SELECT
+		SELECT DISTINCT
 			p.pull_request_id,
 			p.pull_request_name,
 			p.author_id,
-			p.status,
-			p.created_at,
-			p.merged_at,
-			COALESCE(
-				array_agg(rw2.reviewer_id ORDER BY rw2.reviewer_id)
-					FILTER (WHERE rw2.reviewer_id IS NOT NULL),
-				'{}'::text[]
-			) AS reviewers
+			p.status
 		FROM pull_requests p
 		JOIN pr_reviewers rw
 			ON rw.pull_request_id = p.pull_request_id
-		LEFT JOIN pr_reviewers rw2
-			ON rw2.pull_request_id = p.pull_request_id
 		WHERE p.status = 'OPEN'
 		  AND rw.reviewer_id = ANY(@reviewer_ids)
-		GROUP BY
-			p.pull_request_id,
-			p.pull_request_name,
-			p.author_id,
-			p.status,
-			p.created_at,
-			p.merged_at
 	`
 
 	args := pgx.NamedArgs{
@@ -325,7 +298,6 @@ func (r *Repository) ListOpenByReviewers(ctx context.Context, reviewerIDs []stri
 		}
 
 		pr.Status = domain.PRStatus(status)
-
 		res = append(res, pr)
 	}
 
@@ -343,7 +315,7 @@ func (r *Repository) CountByReviewer(ctx context.Context) (map[string]string, er
 		GROUP BY reviewer_id
 	`
 
-	rows, err := r.pool.Query(ctx, query, nil)
+	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", domain.ErrInternalDatabase, err)
 	}

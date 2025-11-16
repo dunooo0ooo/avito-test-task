@@ -40,3 +40,12 @@ type ReassignResponse struct {
 	PullRequestDTO   PullRequestDTO `json:"pr"`
 	ReplacedReviewer string         `json:"replaced_by"`
 }
+
+type ReviewerStatsResponse struct {
+	Stats []ReviewerStatDTO `json:"stats"`
+}
+
+type ReviewerStatDTO struct {
+	UserID string `json:"user_id"`
+	Count  int64  `json:"count"`
+}

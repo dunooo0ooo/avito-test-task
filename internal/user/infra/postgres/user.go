@@ -22,7 +22,9 @@ func (r *Repository) AddTeamMembers(ctx context.Context, teamName string, member
 	if err != nil {
 		return fmt.Errorf("%w: %w", domain.ErrInternalDatabase, err)
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 
 	const query = `
 		INSERT INTO users (user_id, username, team_name, is_active)
@@ -123,7 +125,9 @@ func (r *Repository) UpdateActive(ctx context.Context, id string, active bool) e
 	if err != nil {
 		return fmt.Errorf("%w: %w", domain.ErrInternalDatabase, err)
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 
 	const query = `
 		UPDATE users
@@ -158,7 +162,9 @@ func (r *Repository) DeactivateByTeam(ctx context.Context, teamName string) erro
 	if err != nil {
 		return fmt.Errorf("%w: %w", domain.ErrInternalDatabase, err)
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 
 	const query = `
 		UPDATE users

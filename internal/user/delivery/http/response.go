@@ -24,3 +24,7 @@ type GetReviewsResponse struct {
 	UserID       string                `json:"user_id"`
 	PullRequests []PullRequestShortDTO `json:"pull_requests"`
 }
+type DeactivateResponse struct {
+	TeamName    string   `json:"team_name"`
+	Deactivated []string `json:"deactivated"`
+}

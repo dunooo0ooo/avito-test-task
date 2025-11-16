@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -49,7 +50,9 @@ func TestPullRequestHandler_Create_Success(t *testing.T) {
 	h.Create(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusCreated, res.StatusCode)
 
@@ -76,7 +79,9 @@ func TestPullRequestHandler_Create_InvalidBody(t *testing.T) {
 	h.Create(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
@@ -104,7 +109,9 @@ func TestPullRequestHandler_Create_PRExists(t *testing.T) {
 	h.Create(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusConflict, res.StatusCode)
 
@@ -132,7 +139,9 @@ func TestPullRequestHandler_Create_UserNotFound(t *testing.T) {
 	h.Create(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
 
@@ -168,7 +177,9 @@ func TestPullRequestHandler_Merge_Success(t *testing.T) {
 	h.Merge(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
 
@@ -193,7 +204,9 @@ func TestPullRequestHandler_Merge_InvalidBody(t *testing.T) {
 	h.Merge(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
@@ -221,7 +234,9 @@ func TestPullRequestHandler_Merge_NotFound(t *testing.T) {
 	h.Merge(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
 
@@ -257,7 +272,9 @@ func TestPullRequestHandler_Reassign_Success(t *testing.T) {
 	h.Reassign(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
 
@@ -281,7 +298,9 @@ func TestPullRequestHandler_Reassign_InvalidBody(t *testing.T) {
 	h.Reassign(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
@@ -309,7 +328,9 @@ func TestPullRequestHandler_Reassign_NotFound(t *testing.T) {
 	h.Reassign(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
 
@@ -337,7 +358,9 @@ func TestPullRequestHandler_Reassign_Merged(t *testing.T) {
 	h.Reassign(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusConflict, res.StatusCode)
 
@@ -365,7 +388,9 @@ func TestPullRequestHandler_Reassign_NotAssigned(t *testing.T) {
 	h.Reassign(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusConflict, res.StatusCode)
 
@@ -393,7 +418,9 @@ func TestPullRequestHandler_Reassign_NoCandidate(t *testing.T) {
 	h.Reassign(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusConflict, res.StatusCode)
 

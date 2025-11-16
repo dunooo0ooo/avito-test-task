@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -60,7 +61,9 @@ func TestTeamHandler_AddTeam_Success(t *testing.T) {
 	h.AddTeam(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusCreated, res.StatusCode)
 
@@ -88,7 +91,9 @@ func TestTeamHandler_AddTeam_InvalidBody(t *testing.T) {
 	h.AddTeam(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
@@ -127,7 +132,9 @@ func TestTeamHandler_AddTeam_TeamExists(t *testing.T) {
 	h.AddTeam(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
@@ -166,7 +173,9 @@ func TestTeamHandler_AddTeam_InternalError(t *testing.T) {
 	h.AddTeam(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
 
@@ -201,7 +210,9 @@ func TestTeamHandler_GetTeam_Success(t *testing.T) {
 	h.GetTeam(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
 
@@ -228,7 +239,9 @@ func TestTeamHandler_GetTeam_MissingTeamName(t *testing.T) {
 	h.GetTeam(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
@@ -256,7 +269,9 @@ func TestTeamHandler_GetTeam_NotFound(t *testing.T) {
 	h.GetTeam(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
 
@@ -284,7 +299,9 @@ func TestTeamHandler_GetTeam_InternalError(t *testing.T) {
 	h.GetTeam(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(res.Body)
 
 	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
 

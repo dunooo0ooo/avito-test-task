@@ -89,7 +89,6 @@ func TestTeamService_CreateTeam_CreateError(t *testing.T) {
 		Create(gomock.Any(), &teamdomain.Team{TeamName: teamName}).
 		Return(expectedErr)
 
-	// userRepo не должен вызываться
 	result, err := svc.CreateTeam(ctx, teamName, inputMembers)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, expectedErr))

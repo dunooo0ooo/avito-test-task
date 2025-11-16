@@ -36,6 +36,20 @@ func (m *MockUserService) EXPECT() *MockUserServiceMockRecorder {
 	return m.recorder
 }
 
+// DeactivateTeamUsersAndReassign mocks base method.
+func (m *MockUserService) DeactivateTeamUsersAndReassign(ctx context.Context, teamName string, userIDs []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeactivateTeamUsersAndReassign", ctx, teamName, userIDs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeactivateTeamUsersAndReassign indicates an expected call of DeactivateTeamUsersAndReassign.
+func (mr *MockUserServiceMockRecorder) DeactivateTeamUsersAndReassign(ctx, teamName, userIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeactivateTeamUsersAndReassign", reflect.TypeOf((*MockUserService)(nil).DeactivateTeamUsersAndReassign), ctx, teamName, userIDs)
+}
+
 // GetUserReviews mocks base method.
 func (m *MockUserService) GetUserReviews(ctx context.Context, userID string) (*domain.UserReviews, error) {
 	m.ctrl.T.Helper()

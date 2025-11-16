@@ -187,3 +187,187 @@ func TestService_GetUserReviews_ListByReviewerFails(t *testing.T) {
 	assert.True(t, errors.Is(err, expectedErr))
 	assert.Nil(t, res)
 }
+
+func TestService_DeactivateTeamUsersAndReassign_EmptyUserIDs(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	logger := zap.NewNop()
+
+	svc := NewUserService(userRepo, prRepo, logger)
+	ctx := context.Background()
+
+	err := svc.DeactivateTeamUsersAndReassign(ctx, "backend", []string{})
+	require.NoError(t, err)
+}
+
+func TestService_DeactivateTeamUsersAndReassign_ListByTeamError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	logger := zap.NewNop()
+
+	svc := NewUserService(userRepo, prRepo, logger)
+	ctx := context.Background()
+
+	expectedErr := errors.New("db error")
+
+	userRepo.EXPECT().
+		ListByTeam(gomock.Any(), "backend").
+		Return(nil, expectedErr)
+
+	err := svc.DeactivateTeamUsersAndReassign(ctx, "backend", []string{"u2"})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, expectedErr))
+}
+
+func TestService_DeactivateTeamUsersAndReassign_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	logger := zap.NewNop()
+
+	svc := NewUserService(userRepo, prRepo, logger)
+	ctx := context.Background()
+
+	members := []*userdomain.User{
+		{UserID: "u1", Username: "Alice", TeamName: "backend", IsActive: true},
+		{UserID: "u2", Username: "Bob", TeamName: "backend", IsActive: true},
+		{UserID: "u3", Username: "Carol", TeamName: "backend", IsActive: true},
+	}
+
+	shorts := []prdomain.PullRequestShort{
+		{
+			PullRequestID:   "pr-1",
+			PullRequestName: "Add search",
+			AuthorID:        "u0",
+			Status:          prdomain.PRStatusOpen,
+		},
+	}
+
+	fullPR := &prdomain.PullRequest{
+		PullRequestID:     "pr-1",
+		PullRequestName:   "Add search",
+		AuthorID:          "u0",
+		Status:            prdomain.PRStatusOpen,
+		AssignedReviewers: []string{"u2"},
+	}
+
+	gomock.InOrder(
+		userRepo.EXPECT().
+			ListByTeam(gomock.Any(), "backend").
+			Return(members, nil),
+
+		prRepo.EXPECT().
+			ListOpenByReviewers(gomock.Any(), []string{"u2"}).
+			Return(shorts, nil),
+
+		prRepo.EXPECT().
+			GetByID(gomock.Any(), "pr-1").
+			Return(fullPR, nil),
+
+		prRepo.EXPECT().
+			SetReviewers(gomock.Any(), "pr-1", gomock.Any()).
+			Return(nil),
+
+		userRepo.EXPECT().
+			UpdateActive(gomock.Any(), "u2", false).
+			Return(nil),
+	)
+
+	err := svc.DeactivateTeamUsersAndReassign(ctx, "backend", []string{"u2"})
+	require.NoError(t, err)
+}
+
+func TestService_DeactivateTeamUsersAndReassign_NoMatchingActiveUsers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	logger := zap.NewNop()
+
+	svc := NewUserService(userRepo, prRepo, logger)
+	ctx := context.Background()
+
+	members := []*userdomain.User{
+		{UserID: "u1", Username: "Alice", TeamName: "backend", IsActive: true},
+		{UserID: "u2", Username: "Bob", TeamName: "backend", IsActive: false},
+	}
+
+	userRepo.EXPECT().
+		ListByTeam(gomock.Any(), "backend").
+		Return(members, nil)
+
+	err := svc.DeactivateTeamUsersAndReassign(ctx, "backend", []string{"u3"})
+	require.NoError(t, err)
+}
+
+func TestService_DeactivateTeamUsersAndReassign_UpdateActiveError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	userRepo := usermocks.NewMockUserRepository(ctrl)
+	prRepo := prmocks.NewMockPullRequestRepository(ctrl)
+	logger := zap.NewNop()
+
+	svc := NewUserService(userRepo, prRepo, logger)
+	ctx := context.Background()
+
+	members := []*userdomain.User{
+		{UserID: "u1", Username: "Alice", TeamName: "backend", IsActive: true},
+		{UserID: "u2", Username: "Bob", TeamName: "backend", IsActive: true},
+		{UserID: "u3", Username: "Carol", TeamName: "backend", IsActive: true},
+	}
+
+	shorts := []prdomain.PullRequestShort{
+		{
+			PullRequestID:   "pr-1",
+			PullRequestName: "Add search",
+			AuthorID:        "u0",
+			Status:          prdomain.PRStatusOpen,
+		},
+	}
+
+	fullPR := &prdomain.PullRequest{
+		PullRequestID:     "pr-1",
+		PullRequestName:   "Add search",
+		AuthorID:          "u0",
+		Status:            prdomain.PRStatusOpen,
+		AssignedReviewers: []string{"u2"},
+	}
+
+	updateErr := errors.New("update active failed")
+
+	gomock.InOrder(
+		userRepo.EXPECT().
+			ListByTeam(gomock.Any(), "backend").
+			Return(members, nil),
+
+		prRepo.EXPECT().
+			ListOpenByReviewers(gomock.Any(), []string{"u2"}).
+			Return(shorts, nil),
+
+		prRepo.EXPECT().
+			GetByID(gomock.Any(), "pr-1").
+			Return(fullPR, nil),
+
+		prRepo.EXPECT().
+			SetReviewers(gomock.Any(), "pr-1", gomock.Any()).
+			Return(nil),
+
+		userRepo.EXPECT().
+			UpdateActive(gomock.Any(), "u2", false).
+			Return(updateErr),
+	)
+
+	err := svc.DeactivateTeamUsersAndReassign(ctx, "backend", []string{"u2"})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, updateErr))
+}

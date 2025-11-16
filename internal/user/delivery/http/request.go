@@ -8,3 +8,8 @@ type SetIsActiveRequest struct {
 type GetReviewsRequest struct {
 	UserID string `json:"user_id"`
 }
+
+type DeactivateRequest struct {
+	TeamName string   `json:"team_name"`
+	UserIDs  []string `json:"user_ids"`
+}
